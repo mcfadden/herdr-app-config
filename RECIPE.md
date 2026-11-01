@@ -22,10 +22,10 @@ Agent statuses are drawn by Herdr's shipped `agents`, `spaces` and `pane` mods; 
 - `cmd-alt-b` toggles the dashboard column and `cmd-b` toggles the sidebar. The rest of `keys.json` is macOS-style tab, pane and space bindings.
 - **Calendar:** folds to its header. The settings icon picks calendars; by default all show except holidays and birthdays.
 - **Mail:** a row opens the thread in Gmail. Its buttons mark read, archive or delete. Folds to its header. Refreshes every 2 minutes.
-- **Linear:** lists your open issues with search, plus unread inbox notifications. A row opens the issue. `Space` opens the issue's Herdr space, or asks whether to start a new one with a terminal or `claude`. `+` opens the new-issue dialog. Refreshes every minute.
+- **Linear:** lists your open issues with search, plus unread inbox notifications. A row opens the issue. `Space` opens the issue's Herdr space, or asks whether to start a new one with a terminal, `claude` or a command from `HERDR_LINEAR_AGENTS`. `+` opens the new-issue dialog. Refreshes every minute.
 - **My PRs:** PRs waiting on your review and your own open PRs, with CI and review state. Refreshes every 2 minutes.
 - **Now Playing:** title and artist with previous, play/pause and next. Polls every 3 seconds.
-- **AWS SSO:** time left, with a green dot, yellow under an hour, red when expired. Clicking runs `aws sso login` in a new tab.
+- **AWS SSO:** time left, with a green dot, yellow under an hour, red when expired. Clicking runs the login command in a new tab.
 
 ## Built from
 
@@ -38,18 +38,20 @@ Agent statuses are drawn by Herdr's shipped `agents`, `spaces` and `pane` mods; 
   - `linear` calls `api.linear.app`.
   - `my-prs` runs `gh`.
   - `now-playing` runs `~/bin/media-control`.
-  - `aws-sso` reads `expiresAt` from `~/.aws/sso/cache/*.json` and runs `aws`.
+  - `aws-sso` reads `expiresAt` from `~/.aws/sso/cache/*.json` and runs the login command.
 
 `mods/linear` and `mods/mac-calendar` are adapted from MIT-licensed mods; see the `LICENSE` file in each.
 
 ## Watch out
 
-- **Set these before use:**
-  - `ACCOUNT` in `mods/gmail/main.js`.
-  - `INBOX_URL` and `FIRST_TEAM` in `mods/linear/main.js`.
-  - The `"ENG"` default team in `mods/linear/new.js`.
+- **Personal settings are environment variables,** read from your shell (a login shell if the app was launched from the Dock):
+  - `HERDR_GMAIL_ACCOUNT`: your Gmail address. Required for the mail panel.
+  - `HERDR_LINEAR_WORKSPACE`: your Linear workspace URL key, for the inbox links.
+  - `HERDR_LINEAR_TEAM`: the team key that comes first in search and is the new-issue default.
+  - `HERDR_LINEAR_AGENTS`: comma-separated extra commands for the `Space` menu.
+  - `HERDR_AWS_LOGIN`: the login command for the AWS item. Defaults to `aws sso login`.
 - **Gmail:** needs an app password in macOS Keychain (service `herdr-gmail`, account = your address) or `$GOOGLE_APP_PASSWORD`.
-- **Linear:** needs `~/.config/herdr-app/linear.json` with `{ "apiKey": "lin_api_…" }`, or `$LINEAR_API_KEY`. The optional `repos` key maps team keys to folders. Never commit this file. The new-issue dialog expects an `Investment Category` label group.
+- **Linear:** needs `~/.config/herdr-app/linear.json` with `{ "apiKey": "lin_api_…" }`, or `$LINEAR_API_KEY`. The file's optional `repos` key maps team keys to folders. Never commit this file. The new-issue dialog expects an `Investment Category` label group.
 - **My PRs:** needs `gh auth login`.
 - **macOS only:** `mac-calendar`, `now-playing` and the Gmail mod's link opening.
 - **`keys.json`:** merge it into your own, and ask before replacing keys already in use.

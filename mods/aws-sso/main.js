@@ -1,8 +1,9 @@
-// Status bar item: how long until the AWS SSO session expires. Click to run `aws sso login`.
+// Status bar item: how long until the AWS SSO session expires. Click to run $HERDR_AWS_LOGIN, or `aws sso login`.
 // Reads only `expiresAt` from ~/.aws/sso/cache/*.json; tokens are never shown or sent anywhere.
 import { View, div } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { exec, readTextFile, run, theme, home } from "herdr";
+import { shellEnv } from "./env.js";
 
 const CHECK_MS = 60000;
 const WARN_MS = 60 * 60 * 1000;
@@ -46,7 +47,10 @@ export default class AwsSso extends View {
   }
 
   login(cx) {
-    run("tab.new", { name: "AWS login", argv: ["aws", "sso", "login"] });
+    cx.spawn(async () => {
+      const argv = (await shellEnv("HERDR_AWS_LOGIN") ?? "aws sso login").split(/\s+/);
+      run("tab.new", { name: "AWS login", argv });
+    });
     for (const ms of [20000, 60000, 180000]) cx.timer.after(ms, (cx) => this.check(cx));
   }
 

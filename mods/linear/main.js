@@ -7,7 +7,7 @@ import { spaces, run, shared, setShared, theme, nextCommand, props, openOverlay 
 import { ISSUES_QUERY, SEARCH_QUERY, NOTIFICATIONS_QUERY, unreadInbox, markReadMutation, parseNode, PAGE_SIZE, MAX_PAGES, STATUSES, parseIssues, nextCursor, filterIssues, byState, ago } from "./linear.js";
 import { loadConfig, gql, NO_KEY } from "./api.js";
 import { NewIssueForm } from "./new.js";
-import { SpaceMenu, MENU_WIDTH, MENU_HEIGHT } from "./space-menu.js";
+import { SpaceMenu, MENU_WIDTH, menuHeight } from "./space-menu.js";
 import { openUrl } from "./open.js";
 
 const REFRESH_MS = 60000;
@@ -28,7 +28,7 @@ async function fetchIssues(apiKey) {
   return issues;
 }
 
-// Issue -> Herdr space links, by issue identifier: { "ENG-123": "<space id>" }. A space named
+// Issue -> Herdr space links, by issue identifier: { "TEAM-123": "<space id>" }. A space named
 // "<identifier>" or "<identifier> …" counts too, so links survive a lost id and can be made by hand.
 const SPACES_KEY = "linear.spaces";
 
@@ -42,10 +42,7 @@ function spaceFor(issue) {
 }
 
 const PRIORITY_COLORS = { 1: "ansi1", 2: "working" };
-// Search results from this team come first; Linear's relevance order is kept within each group.
-const FIRST_TEAM = "ENG";
-// Set your-workspace to your Linear workspace URL key.
-const INBOX_SHOWN = 8, INBOX_URL = "https://linear.app/your-workspace/inbox";
+const INBOX_SHOWN = 8;
 const SEARCH_MIN = 2, SEARCH_DELAY_MS = 350, SEARCH_LIMIT = 25;
 const ASSIGN = `mutation($id: String!, $me: String!) { issueUpdate(id: $id, input: { assigneeId: $me }) { success } }`;
 
@@ -101,7 +98,8 @@ export default class Linear extends View {
           if (!this.config?.apiKey) throw new Error(NO_KEY);
           const data = await gql(this.config.apiKey, SEARCH_QUERY, { term, first: SEARCH_LIMIT });
           if (gen === this.searchGen) { const found = data.searchIssues.nodes.map(parseNode);
-            this.results = [...byState(found.filter((i) => i.team === FIRST_TEAM)), ...byState(found.filter((i) => i.team !== FIRST_TEAM))]; this.searchError = null; }
+            const team = this.config.team; // HERDR_LINEAR_TEAM's results come first; Linear's relevance order is kept within each group.
+            this.results = [...byState(found.filter((i) => i.team === team)), ...byState(found.filter((i) => i.team !== team))]; this.searchError = null; }
         } catch (e) { if (gen === this.searchGen) this.searchError = String(e.message ?? e); }
         finally { if (gen === this.searchGen) this.searching = false; cx.notify(); }
       });
@@ -143,7 +141,8 @@ export default class Linear extends View {
     const space = spaceFor(issue);
     if (space) return run("space.select", { id: space.id });
     const folder = this.config?.repos?.[issue.team], name = `${issue.identifier} ${issue.title}`.slice(0, 60);
-    openOverlay({ mod: "linear", kind: "popup", width: MENU_WIDTH, height: MENU_HEIGHT, props: { dialog: "space", name, folder } });
+    const agents = this.config?.agents ?? [];
+    openOverlay({ mod: "linear", kind: "popup", width: MENU_WIDTH, height: menuHeight(agents), props: { dialog: "space", name, folder, agents } });
   }
 
   chip(status, t) {
@@ -215,7 +214,7 @@ export default class Linear extends View {
         .child(div().flex_1())
         .child(div().id("inbox-read-all").flex_none().px(6).rounded(4).cursor_pointer().text_size(11).text_color(t.muted)
           .hover((s) => s.bg(t.hover).text_color(t.foreground)).on_click((_e, cx) => this.markRead(inbox, cx)).child("Mark all read"))
-        .child(link("inbox-all", "Open inbox", INBOX_URL)))
+        .child(link("inbox-all", "Open inbox", this.config?.inboxUrl)))
       .when(Boolean(this.inboxError), (e) => e.child(div().px(10).py(2).text_size(11).text_color(t.ansi1).child(this.inboxError ?? "")))
       .children(shown.map((n) => v_flex().id(`note-${n.id}`).flex_none().px(10).py(5).gap(2).rounded(7).cursor_pointer()
         .hover((s) => s.bg(t.hover)).on_click(() => openUrl(n.url))
@@ -230,7 +229,7 @@ export default class Linear extends View {
         .child(h_flex().gap(6).items_center().text_size(11).text_color(t.muted)
           .child(div().flex_1().min_w(0).truncate().child(n.subtitle))
           .when(n.count > 1, (e) => e.child(div().flex_none().text_color(t.dim).child(`+${n.count - 1}`))))))
-      .when(more > 0, (e) => e.child(div().px(10).py(3).child(link("inbox-more", `${more} more in Linear`, INBOX_URL))));
+      .when(more > 0, (e) => e.child(div().px(10).py(3).child(link("inbox-more", `${more} more in Linear`, this.config?.inboxUrl))));
   }
 
   emptyText() {

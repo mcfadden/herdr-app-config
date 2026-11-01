@@ -38,7 +38,7 @@ export class NewIssueForm {
         const data = await gql(this.config.apiKey, VIEWER);
         this.viewerId = data.viewer.id;
         this.teams = data.viewer.teams.nodes;
-        const team = this.teams.find((t) => t.id === last.teamId) ?? this.teams.find((t) => t.key === "ENG") ?? this.teams[0];
+        const team = this.teams.find((t) => t.id === last.teamId) ?? this.teams.find((t) => t.key === this.config.team) ?? this.teams[0];
         if (team) await this.loadTeam(team.id, cx, true);
       } catch (e) { this.error = String(e.message ?? e); }
       cx.notify();

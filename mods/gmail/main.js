@@ -3,9 +3,8 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { exec, theme, appHome, run, layout, shared, setShared } from "herdr";
+import { shellEnv } from "./env.js";
 
-// Set this to your Gmail address.
-const ACCOUNT = "you@example.com";
 const SHOWN = 8;
 const REFRESH_MS = 120000;
 const FOLD = 32;
@@ -19,8 +18,6 @@ function toggleFold(id) {
   if (isFolded(id)) run("layout.resize", { id, ...(shared(`fold.${id}`) ?? { px: 240 }) });
   else { setShared(`fold.${id}`, size ?? { px: 240 }); run("layout.resize", { id, px: FOLD }); }
 }
-
-const GMAIL = `https://mail.google.com/mail/u/${encodeURIComponent(ACCOUNT)}/`;
 
 async function helper(args) {
   const r = await exec("/usr/bin/python3", ["-I", `${appHome()}/mods/gmail/fetch.py`, ...args]);
@@ -49,6 +46,8 @@ export default class Gmail extends View {
     cx.timer.every(REFRESH_MS, (cx) => this.refresh(cx));
   }
 
+  get gmail() { return `https://mail.google.com/mail/u/${encodeURIComponent(this.account ?? "0")}/`; }
+
   // Background refreshes stay quiet: no redraw until results arrive, and the icon only spins for a
   // click. "Loading…" only shows before the first load finishes.
   refresh(cx, manual = false) {
@@ -56,7 +55,9 @@ export default class Gmail extends View {
     this.loading = true; this.manual = manual;
     cx.spawn(async (cx) => {
       try {
-        const out = await helper(["list", ACCOUNT, String(SHOWN)]);
+        this.account ??= await shellEnv("HERDR_GMAIL_ACCOUNT");
+        if (!this.account) throw new Error("Set HERDR_GMAIL_ACCOUNT in your shell to your Gmail address.");
+        const out = await helper(["list", this.account, String(SHOWN)]);
         if (generation === this.generation) { this.messages = out.messages; this.unread = out.unread; this.error = null; }
       } catch (e) { if (generation === this.generation) this.error = String(e.message ?? e); }
       finally { if (generation === this.generation) { this.loading = false; this.loaded = true; } cx.notify(); }
@@ -75,7 +76,7 @@ export default class Gmail extends View {
     this.unread = Math.max(0, (this.unread ?? uids.length) - uids.length);
     this.generation++;
     cx.spawn(async (cx) => {
-      try { await helper([command, ACCOUNT, ...uids]); this.refresh(cx); }
+      try { await helper([command, this.account, ...uids]); this.refresh(cx); }
       catch (e) { Object.assign(this, before); this.error = String(e.message ?? e); cx.notify(); }
     });
     cx.notify();
@@ -96,7 +97,7 @@ export default class Gmail extends View {
 
   row(m, t) {
     return v_flex().id(`mail-${m.uid}`).flex_none().px(4).mx(-4).py(4).gap(1).rounded(5).cursor_pointer()
-      .hover((s) => s.bg(t.hover)).on_click(() => openUrl(m.thread ? `${GMAIL}#inbox/${m.thread}` : `${GMAIL}#inbox`))
+      .hover((s) => s.bg(t.hover)).on_click(() => openUrl(m.thread ? `${this.gmail}#inbox/${m.thread}` : `${this.gmail}#inbox`))
       .child(h_flex().gap(6).items_center()
         .child(div().flex_1().min_w(0).truncate().font_semibold().text_color(t.foreground).child(m.from))
         .child(div().flex_none().text_size(11).text_color(t.dim).child(m.date ? ago(m.date) : ""))
@@ -114,7 +115,7 @@ export default class Gmail extends View {
         .child(div().id("fold-mail").flex_1().min_w(0).truncate().cursor_pointer().hover((s) => s.text_color(t.foreground))
           .on_click(() => toggleFold(this.block)).child(`${isFolded(this.block) ? "▸" : "▾"}  Mail · ${count}`))
         .when(this.messages.length > 0, (e) => e.child(this.button("mail-read-all", "Mark all read", (_e, cx) => this.markRead(this.messages, cx), t)))
-        .child(this.button("mail-open", "Gmail", () => openUrl(`${GMAIL}#inbox`), t))
+        .child(this.button("mail-open", "Gmail", () => openUrl(`${this.gmail}#inbox`), t))
         .child(div().id("mail-refresh").px(6).rounded(4).cursor_pointer().text_color(t.muted).tooltip("Refresh")
           .hover((s) => s.bg(t.hover).text_color(t.foreground)).on_click((_e, cx) => this.refresh(cx, true))
           .child(svg("mods/gmail/refresh.svg").size(13).when(this.loading && this.manual, (e) => e.spin(900)))))
@@ -123,6 +124,6 @@ export default class Gmail extends View {
         .when(!this.error && this.unread === 0, (e) => e.child(div().text_color(t.dim).child("Inbox zero")))
         .children(this.messages.map((m) => this.row(m, t)))
         .when(this.unread > this.messages.length && this.messages.length > 0, (e) => e.child(
-          this.button("mail-more", `${this.unread - this.messages.length} more in Gmail`, () => openUrl(`${GMAIL}#search/is%3Aunread+in%3Ainbox`), t))));
+          this.button("mail-more", `${this.unread - this.messages.length} more in Gmail`, () => openUrl(`${this.gmail}#search/is%3Aunread+in%3Ainbox`), t))));
   }
 }
