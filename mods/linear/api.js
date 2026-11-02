@@ -1,15 +1,23 @@
 // Linear API access shared by the panel and the new-issue dialog.
-import { home, appHome, readTextFile } from "herdr";
+import { home, appHome, readTextFile, exec } from "herdr";
 import { API_URL, parseConfig, linearError } from "./linear.js";
 import { shellEnv } from "./env.js";
 
-export const NO_KEY = "No Linear API key. Add it to ~/.config/herdr-app/linear.json or set LINEAR_API_KEY.";
+export const NO_KEY = "No Linear API key. Add it to the macOS Keychain (service herdr-linear), ~/.config/herdr-app/linear.json, or set LINEAR_API_KEY.";
 
 export async function loadConfig() {
   const text = await readTextFile(`${appHome()}/linear.json`).catch(() => null);
   const config = parseConfig(text, home());
-  if (!config.apiKey && !config.error) config.apiKey = await shellEnv("LINEAR_API_KEY");
+  if (!config.apiKey && !config.error) config.apiKey = (await keychainKey()) ?? (await shellEnv("LINEAR_API_KEY"));
   return { ...config, ...(await (personal ??= loadPersonal())) };
+}
+
+let cachedKey = null;
+async function keychainKey() {
+  if (cachedKey) return cachedKey;
+  const r = await exec("security", ["find-generic-password", "-s", "herdr-linear", "-w"]).catch(() => null);
+  cachedKey = r?.code === 0 ? r.stdout.trim() || null : null;
+  return cachedKey;
 }
 
 // Read once: the panel reloads its config every minute, and a login shell is slow to start.

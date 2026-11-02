@@ -35,7 +35,7 @@ Agent statuses are drawn by Herdr's shipped `agents`, `spaces` and `pane` mods; 
 - **Programs and network:**
   - `mac-calendar` runs `sqlite3` on the macOS Calendar database.
   - `gmail` runs `/usr/bin/python3` (`fetch.py`), which connects to `imap.gmail.com`.
-  - `linear` calls `api.linear.app`.
+  - `linear` calls `api.linear.app` and runs `security` to read its API key from Keychain.
   - `my-prs` runs `gh`.
   - `now-playing` runs `~/bin/media-control`.
   - `aws-sso` reads `expiresAt` from `~/.aws/sso/cache/*.json` and runs the login command.
@@ -51,7 +51,7 @@ Agent statuses are drawn by Herdr's shipped `agents`, `spaces` and `pane` mods; 
   - `HERDR_LINEAR_AGENTS`: comma-separated extra commands for the `Space` menu.
   - `HERDR_AWS_LOGIN`: the login command for the AWS item. Defaults to `pco aws-login`, Planning Center's login command; set `aws sso login` for plain AWS SSO.
 - **Gmail:** needs an app password in macOS Keychain (service `herdr-gmail`, account = your address) or `$GOOGLE_APP_PASSWORD`.
-- **Linear:** needs `~/.config/herdr-app/linear.json` with `{ "apiKey": "lin_api_…" }`, or `$LINEAR_API_KEY`. The file's optional `repos` key maps team keys to folders. Never commit this file. The new-issue dialog expects an `Investment Category` label group.
+- **Linear:** needs an API key in macOS Keychain (service `herdr-linear`; add it with `security add-generic-password -s herdr-linear -a "$USER" -w`), `~/.config/herdr-app/linear.json` with `{ "apiKey": "lin_api_…" }`, or `$LINEAR_API_KEY`. The file's optional `repos` key maps team keys to folders. Never commit this file. The new-issue dialog expects an `Investment Category` label group.
 - **My PRs:** needs `gh auth login`.
 - **macOS only:** `mac-calendar`, `now-playing` and the Gmail mod's link opening.
 - **`keys.json`:** merge it into your own, and ask before replacing keys already in use.
