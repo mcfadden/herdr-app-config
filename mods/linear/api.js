@@ -1,6 +1,6 @@
 // Linear API access shared by the panel and the new-issue dialog.
 import { home, appHome, readTextFile, exec } from "herdr";
-import { API_URL, parseConfig, linearError } from "./linear.js";
+import { API_URL, parseConfig, splitAgents, linearError } from "./linear.js";
 import { shellEnv } from "./env.js";
 
 export const NO_KEY = "No Linear API key. Add it to the macOS Keychain (service herdr-linear), ~/.config/herdr-app/linear.json, or set LINEAR_API_KEY.";
@@ -9,8 +9,18 @@ export async function loadConfig() {
   const text = await readTextFile(`${appHome()}/linear.json`).catch(() => null);
   const config = parseConfig(text, home());
   if (!config.apiKey && !config.error) config.apiKey = (await keychainKey()) ?? (await shellEnv("LINEAR_API_KEY"));
-  return { ...config, ...(await (personal ??= loadPersonal())) };
+  const workspace = config.workspace ?? (await fromEnv("HERDR_LINEAR_WORKSPACE"));
+  return {
+    ...config,
+    inboxUrl: workspace ? `https://linear.app/${encodeURIComponent(workspace)}/inbox` : "https://linear.app/",
+    team: config.team ?? (await fromEnv("HERDR_LINEAR_TEAM")),
+    agents: config.agents ?? splitAgents(await fromEnv("HERDR_LINEAR_AGENTS")) ?? [],
+  };
 }
+
+// Read once and only when linear.json leaves the setting out: the panel reloads its config every minute, and a login shell is slow to start.
+const envCache = {};
+const fromEnv = (name) => (envCache[name] ??= shellEnv(name));
 
 let cachedKey = null;
 async function keychainKey() {
@@ -18,17 +28,6 @@ async function keychainKey() {
   const r = await exec("security", ["find-generic-password", "-s", "herdr-linear", "-w"]).catch(() => null);
   cachedKey = r?.code === 0 ? r.stdout.trim() || null : null;
   return cachedKey;
-}
-
-// Read once: the panel reloads its config every minute, and a login shell is slow to start.
-let personal = null;
-async function loadPersonal() {
-  const [workspace, team, agents] = await Promise.all(["HERDR_LINEAR_WORKSPACE", "HERDR_LINEAR_TEAM", "HERDR_LINEAR_AGENTS"].map(shellEnv));
-  return {
-    inboxUrl: workspace ? `https://linear.app/${encodeURIComponent(workspace)}/inbox` : "https://linear.app/",
-    team,
-    agents: (agents ?? "").split(",").map((a) => a.trim()).filter(Boolean),
-  };
 }
 
 // One GraphQL request; throws a short message on HTTP or GraphQL errors.

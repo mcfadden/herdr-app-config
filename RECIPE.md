@@ -46,9 +46,9 @@ Agent statuses are drawn by Herdr's shipped `agents`, `spaces` and `pane` mods; 
 
 - **Personal settings are environment variables,** read from your shell (a login shell if the app was launched from the Dock):
   - `HERDR_GMAIL_ACCOUNT`: your Gmail address. Required for the mail panel.
-  - `HERDR_LINEAR_WORKSPACE`: your Linear workspace URL key, for the inbox links.
-  - `HERDR_LINEAR_TEAM`: the team key that comes first in search and is the new-issue default.
-  - `HERDR_LINEAR_AGENTS`: comma-separated extra commands for the `Space` menu.
+  - `HERDR_LINEAR_WORKSPACE`: your Linear workspace URL key, for the inbox links. Or `workspace` in `linear.json`.
+  - `HERDR_LINEAR_TEAM`: the team key that comes first in search and is the new-issue default. Or `team` in `linear.json`.
+  - `HERDR_LINEAR_AGENTS`: comma-separated extra commands for the `Space` menu. Or `agents` (an array) in `linear.json`.
   - `HERDR_AWS_LOGIN`: the login command for the AWS item. Defaults to `pco aws-login`, Planning Center's login command; set `aws sso login` for plain AWS SSO.
 - **Gmail:** needs an app password in macOS Keychain (service `herdr-gmail`, account = your address) or `$GOOGLE_APP_PASSWORD`.
 - **Linear:** needs an API key in macOS Keychain (service `herdr-linear`; add it with `security add-generic-password -s herdr-linear -a "$USER" -w`), `~/.config/herdr-app/linear.json` with `{ "apiKey": "lin_api_…" }`, or `$LINEAR_API_KEY`. The file's optional `repos` key maps team keys to folders. Never commit this file. The new-issue dialog expects an `Investment Category` label group.
